@@ -30,7 +30,6 @@ class _PDFCreationPageState extends State<PDFCreationPage> {
     _pickImages(widget.source);
   }
 
-  // 📸 Image Picker
   Future<void> _pickImages(ImageSource source) async {
     final picker = ImagePicker();
     if (source == ImageSource.gallery) {
@@ -60,7 +59,6 @@ class _PDFCreationPageState extends State<PDFCreationPage> {
     }
   }
 
-  // 📷 Dialog for "Take another"
   Future<bool> _cameraDialog() async {
     if (!mounted) return false;
     return await showDialog(
@@ -81,7 +79,6 @@ class _PDFCreationPageState extends State<PDFCreationPage> {
         false;
   }
 
-  // 📝 File name input
   Future<void> _fileNameDialog() async {
     if (!mounted) return;
     await showDialog(
@@ -110,7 +107,6 @@ class _PDFCreationPageState extends State<PDFCreationPage> {
     );
   }
 
-  // 🧾 Create PDF (Optimized with loading indicator)
   Future<void> _createPDF() async {
     showDialog(
       context: context,
@@ -120,7 +116,7 @@ class _PDFCreationPageState extends State<PDFCreationPage> {
 
     final pdf = pw.Document();
     for (var image in _images) {
-      final imgBytes = await image.readAsBytes(); // ✅ async instead of sync
+      final imgBytes = await image.readAsBytes();
       final img = pw.MemoryImage(imgBytes);
       pdf.addPage(pw.Page(
           margin: const pw.EdgeInsets.all(0),
@@ -137,7 +133,7 @@ class _PDFCreationPageState extends State<PDFCreationPage> {
     final file = File("${pdfDir.path}/$pdfFileName.pdf");
     await file.writeAsBytes(await pdf.save());
 
-    Navigator.pop(context); // Close loading dialog
+    Navigator.pop(context);
     widget.onPdfCreated(file);
     if (!mounted) return;
     Navigator.pop(context);
