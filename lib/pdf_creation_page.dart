@@ -22,7 +22,9 @@ class _PDFCreationPageState extends State<PDFCreationPage> {
   final List<File> _images = [];
   String pdfFileName = "My File";
 
+  //------------------------------------------------
   // Pick images from gallery/camera
+  //------------------------------------------------
   Future<void> _pickImages(ImageSource source) async {
     try {
       final picker = ImagePicker();
@@ -56,7 +58,9 @@ class _PDFCreationPageState extends State<PDFCreationPage> {
     }
   }
 
+  // ------------------------------------------------
   // Camera dialog for multiple captures
+  // ------------------------------------------------
   Future<bool> _cameraDialog() async {
     if (!mounted) return false;
     return await showDialog(
@@ -77,7 +81,9 @@ class _PDFCreationPageState extends State<PDFCreationPage> {
         false;
   }
 
+  // ------------------------------------------------
   // File name dialog before creating PDF
+  // ------------------------------------------------
   Future<void> _fileNameDialog() async {
     if (!mounted) return;
     final controller = TextEditingController(text: pdfFileName);
@@ -112,7 +118,9 @@ class _PDFCreationPageState extends State<PDFCreationPage> {
     );
   }
 
+  //------------------------------------------------
   // PDF creation logic
+  //------------------------------------------------
   Future<void> _createPDF() async {
     try {
       showDialog(
@@ -157,7 +165,9 @@ class _PDFCreationPageState extends State<PDFCreationPage> {
     }
   }
 
+  //------------------------------------------------
   // Snackbar utility
+  //------------------------------------------------
   void _showSnackBar(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -165,6 +175,9 @@ class _PDFCreationPageState extends State<PDFCreationPage> {
     );
   }
 
+  //------------------------------------------------
+  // Build UI
+  //------------------------------------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
