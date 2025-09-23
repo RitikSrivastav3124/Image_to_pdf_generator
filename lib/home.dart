@@ -21,12 +21,16 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> _fileDetails = [];
+
   @override
   void initState() {
     super.initState();
     _loadFiles();
   }
 
+  // ---------------------
+  // Helpers
+  // ---------------------
   Future<Directory> _getPdfDirectory() async {
     final dir = await getApplicationDocumentsDirectory();
     final pdfDir = Directory('${dir.path}/pdf_converter');
@@ -37,38 +41,47 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadFiles() async {
-    final pdfDir = await _getPdfDirectory();
-    final files = pdfDir.listSync().whereType<File>();
+    try {
+      final pdfDir = await _getPdfDirectory();
+      final files = pdfDir.listSync().whereType<File>();
 
-    final details = await Future.wait(files.map((file) async {
-      final stat = await file.stat();
-      return {
-        'file': file,
-        'modified': stat.modified,
-        'size': '${(stat.size / 1024).toStringAsFixed(2)} KB',
-      };
-    }));
+      final details = await Future.wait(files.map((file) async {
+        final stat = await file.stat();
+        return {
+          'file': file,
+          'modified': stat.modified,
+          'size': '${(stat.size / 1024).toStringAsFixed(2)} KB',
+        };
+      }));
 
-    details.sort((a, b) =>
-        (b['modified'] as DateTime).compareTo(a['modified'] as DateTime));
+      details.sort((a, b) =>
+          (b['modified'] as DateTime).compareTo(a['modified'] as DateTime));
 
-    if (!mounted) return;
-    setState(() => _fileDetails = details);
+      if (!mounted) return;
+      setState(() => _fileDetails = details);
+    } catch (e) {
+      if (mounted) _showSnackBar('Failed to load files: $e');
+    }
   }
 
   Future<bool> _requestPermission(
       Permission permission, String permissionName) async {
-    var status = await permission.status;
-    if (!status.isGranted) {
-      status = await permission.request();
-    }
+    try {
+      var status = await permission.status;
+      if (!status.isGranted) {
+        status = await permission.request();
+      }
 
-    if (status.isDenied || status.isPermanentlyDenied) {
-      if (!mounted) return false;
-      _showPermissionDeniedDialog(permissionName);
+      if (status.isDenied || status.isPermanentlyDenied) {
+        if (!mounted) return false;
+        _showPermissionDeniedDialog(permissionName);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      if (mounted) _showSnackBar('Permission check failed: $e');
       return false;
     }
-    return true;
   }
 
   Future<bool> _checkCameraPermission() =>
@@ -96,23 +109,33 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // ---------------------
+  // Actions: navigation & pickers
+  // ---------------------
   Future<void> _pickImageFromCamera() async {
-    if (!await _checkCameraPermission()) return;
-    if (!mounted) return;
+    final ok = await _checkCameraPermission();
+    if (!ok || !mounted) return;
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PDFCreationPage(
-          source: ImageSource.camera,
-          onPdfCreated: (file) {
-            _loadFiles();
-          },
+    try {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PDFCreationPage(
+            source: ImageSource.camera,
+            onPdfCreated: (file) {
+              _loadFiles();
+            },
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      if (mounted) _showSnackBar('Failed to open camera: $e');
+    }
   }
 
+  // ---------------------
+  // File operations
+  // ---------------------
   String _formatDateTime(DateTime dateTime) {
     return DateFormat('hh:mm a · dd MMM yyyy').format(dateTime);
   }
@@ -139,27 +162,33 @@ class _HomePageState extends State<HomePage> {
               child: const Text('Cancel')),
           TextButton(
             onPressed: () async {
-              if (newName.isNotEmpty) {
-                final newPath = '${file.parent.path}/$newName.pdf';
-                final renamedFile = await file.rename(newPath);
+              try {
+                if (newName.isNotEmpty) {
+                  final newPath = '${file.parent.path}/$newName.pdf';
+                  final renamedFile = await file.rename(newPath);
 
-                final stat = await renamedFile.stat();
-                final newDetail = {
-                  'file': renamedFile,
-                  'modified': stat.modified,
-                  'size': '${(stat.size / 1024).toStringAsFixed(2)} KB',
-                };
+                  final stat = await renamedFile.stat();
+                  final newDetail = {
+                    'file': renamedFile,
+                    'modified': stat.modified,
+                    'size': '${(stat.size / 1024).toStringAsFixed(2)} KB',
+                  };
 
-                if (!mounted) return;
-                setState(() {
-                  _fileDetails.removeWhere(
-                      (element) => element['file'].path == file.path);
-                  _fileDetails.add(newDetail);
-                  _fileDetails.sort((a, b) => (b['modified'] as DateTime)
-                      .compareTo(a['modified'] as DateTime));
-                });
+                  if (!mounted) return;
+                  setState(() {
+                    _fileDetails.removeWhere(
+                        (element) => element['file'].path == file.path);
+                    _fileDetails.add(newDetail);
+                    _fileDetails.sort((a, b) => (b['modified'] as DateTime)
+                        .compareTo(a['modified'] as DateTime));
+                  });
+                  _showSnackBar('Renamed to $newName.pdf');
+                }
+              } catch (e) {
+                if (mounted) _showSnackBar('Rename failed: $e');
+              } finally {
+                if (mounted) Navigator.pop(context);
               }
-              Navigator.pop(context);
             },
             child: const Text('Rename'),
           )
@@ -169,17 +198,32 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _sharePdf(File file) async {
-    await Share.shareXFiles([XFile(file.path)], text: 'Check out this PDF!');
+    try {
+      final params = ShareParams(
+        text: 'Check out this PDF!',
+        files: [XFile(file.path)],
+      );
+      await SharePlus.instance.share(params);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Share failed: $e')));
+      }
+    }
   }
 
   Future<void> _deletePdf(File file) async {
-    await file.delete();
-    if (!mounted) return;
-    setState(() {
-      _fileDetails.removeWhere((element) => element['file'].path == file.path);
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('PDF Deleted Successfully')));
+    try {
+      await file.delete();
+      if (!mounted) return;
+      setState(() {
+        _fileDetails
+            .removeWhere((element) => element['file'].path == file.path);
+      });
+      _showSnackBar('PDF Deleted Successfully');
+    } catch (e) {
+      if (mounted) _showSnackBar('Delete failed: $e');
+    }
   }
 
   Future<void> _confirmDelete(File file) async {
@@ -203,45 +247,51 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // ---------------------
+  // Manage External Storage permission (Android 11+)
+  // ---------------------
   Future<bool> _checkManageStoragePermission() async {
-    final status = await Permission.manageExternalStorage.status;
-    if (status.isGranted) return true;
+    try {
+      final status = await Permission.manageExternalStorage.status;
+      if (status.isGranted) return true;
 
-    final result = await Permission.manageExternalStorage.request();
-
-    if (result.isDenied || result.isPermanentlyDenied) {
-      if (!mounted) return false;
-      final openSettings = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Permission Required'),
-          content: const Text(
-              'Storage permission is permanently denied. Please enable it from app settings.'),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel')),
-            TextButton(
-              onPressed: () {
-                openAppSettings();
-                Navigator.pop(context, true);
-              },
-              child: const Text('Open Settings'),
-            ),
-          ],
-        ),
-      );
-      return openSettings == true;
+      final result = await Permission.manageExternalStorage.request();
+      if (result.isDenied || result.isPermanentlyDenied) {
+        if (!mounted) return false;
+        final openSettings = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Permission Required'),
+            content: const Text(
+                'Storage permission is permanently denied. Please enable it from app settings.'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel')),
+              TextButton(
+                onPressed: () {
+                  openAppSettings();
+                  Navigator.pop(context, true);
+                },
+                child: const Text('Open Settings'),
+              ),
+            ],
+          ),
+        );
+        return openSettings == true;
+      }
+      return result.isGranted;
+    } catch (e) {
+      if (mounted) _showSnackBar('Permission check failed: $e');
+      return false;
     }
-    return result.isGranted;
   }
 
   Future<void> _downloadPdf(File file) async {
     if (Platform.isAndroid) {
       final hasPermission = await _checkManageStoragePermission();
       if (!hasPermission) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Storage permission denied')));
+        if (mounted) _showSnackBar('Storage permission denied');
         return;
       }
     }
@@ -265,21 +315,20 @@ class _HomePageState extends State<HomePage> {
         } while (await newFile.exists());
         await file.copy(newFile.path);
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Downloaded to ${newFile.path}')));
+        _showSnackBar('Downloaded to ${newFile.path}');
       } else {
         await file.copy(destFile.path);
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Downloaded to ${destFile.path}')));
+        _showSnackBar('Downloaded to ${destFile.path}');
       }
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Download failed: $e')));
+      if (mounted) _showSnackBar('Download failed: $e');
     }
   }
 
+  // ---------------------
+  // Bottom sheet: file options
+  // ---------------------
   void _showFileOptions(File file) {
     showModalBottomSheet(
       context: context,
@@ -328,7 +377,7 @@ class _HomePageState extends State<HomePage> {
                     ],
                   ),
                 );
-                if (confirm == true) _downloadPdf(file);
+                if (confirm == true) await _downloadPdf(file);
               },
             ),
             ListTile(
@@ -353,6 +402,18 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // ---------------------
+  // UI utils
+  // ---------------------
+  void _showSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  // ---------------------
+  // Build
+  // ---------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -366,37 +427,51 @@ class _HomePageState extends State<HomePage> {
       body: Container(
         color: const Color.fromARGB(255, 236, 234, 248),
         child: _fileDetails.isEmpty
-            ? const Center(
-                child: Text('No PDFs created yet.',
-                    style: TextStyle(fontSize: 16)))
-            : ListView.builder(
-                itemCount: _fileDetails.length,
-                itemBuilder: (context, index) {
-                  final file = _fileDetails[index]['file'] as File;
-                  final modified = _fileDetails[index]['modified'] as DateTime;
-                  final size = _fileDetails[index]['size'] as String;
+            ? RefreshIndicator(
+                onRefresh: _loadFiles,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: const [
+                    SizedBox(height: 60),
+                    Center(
+                        child: Text('No PDFs created yet.',
+                            style: TextStyle(fontSize: 16))),
+                  ],
+                ),
+              )
+            : RefreshIndicator(
+                onRefresh: _loadFiles,
+                child: ListView.builder(
+                  itemCount: _fileDetails.length,
+                  itemBuilder: (context, index) {
+                    final file = _fileDetails[index]['file'] as File;
+                    final modified =
+                        _fileDetails[index]['modified'] as DateTime;
+                    final size = _fileDetails[index]['size'] as String;
 
-                  return Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    child: Card(
-                      elevation: 3,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.all(12),
-                        tileColor: Colors.white,
-                        leading: const Icon(Icons.picture_as_pdf,
-                            color: Colors.deepPurple, size: 30),
-                        title: Text(file.path.split('/').last,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.w500)),
-                        subtitle: Text('${_formatDateTime(modified)} • $size'),
-                        onTap: () => _showFileOptions(file),
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      child: Card(
+                        elevation: 3,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.all(12),
+                          tileColor: Colors.white,
+                          leading: const Icon(Icons.picture_as_pdf,
+                              color: Colors.deepPurple, size: 30),
+                          title: Text(file.path.split('/').last,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w500)),
+                          subtitle:
+                              Text('${_formatDateTime(modified)} • $size'),
+                          onTap: () => _showFileOptions(file),
+                        ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
       ),
       bottomNavigationBar: Padding(
@@ -408,22 +483,25 @@ class _HomePageState extends State<HomePage> {
               message: 'Pick from Gallery',
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  shape: const CircleBorder(),
-                  backgroundColor: Colors.deepPurple,
-                  minimumSize: const Size.fromRadius(35),
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => PDFCreationPage(
-                        source: ImageSource.gallery,
-                        onPdfCreated: (file) {
-                          _loadFiles();
-                        },
+                    shape: const CircleBorder(),
+                    backgroundColor: Colors.deepPurple,
+                    minimumSize: const Size.fromRadius(35)),
+                onPressed: () async {
+                  try {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => PDFCreationPage(
+                          source: ImageSource.gallery,
+                          onPdfCreated: (file) {
+                            _loadFiles();
+                          },
+                        ),
                       ),
-                    ),
-                  );
+                    );
+                  } catch (e) {
+                    _showSnackBar('Failed to open gallery: $e');
+                  }
                 },
                 child: const Icon(Icons.photo_library,
                     size: 28, color: Colors.white),
@@ -433,10 +511,9 @@ class _HomePageState extends State<HomePage> {
               message: 'Take Photo',
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  shape: const CircleBorder(),
-                  backgroundColor: Colors.deepPurple,
-                  minimumSize: const Size.fromRadius(35),
-                ),
+                    shape: const CircleBorder(),
+                    backgroundColor: Colors.deepPurple,
+                    minimumSize: const Size.fromRadius(35)),
                 onPressed: _pickImageFromCamera,
                 child:
                     const Icon(Icons.camera_alt, size: 28, color: Colors.white),
