@@ -2,18 +2,15 @@
 
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
-import 'package:pdf_converter/pdf_creation_page.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:pdf_converter/Controllers/permission_controller.dart';
+import 'package:pdf_converter/Screens/pdf_options/pdf_options_page.dart';
 import 'package:share_plus/share_plus.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key, required this.title});
-
-  final String title;
+  const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -21,6 +18,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> _fileDetails = [];
+  final Controllers _controllers = Controllers();
 
   @override
   void initState() {
@@ -61,75 +59,6 @@ class _HomePageState extends State<HomePage> {
       setState(() => _fileDetails = details);
     } catch (e) {
       if (mounted) _showSnackBar('Failed to load files: $e');
-    }
-  }
-
-  Future<bool> _requestPermission(
-      Permission permission, String permissionName) async {
-    try {
-      var status = await permission.status;
-      if (!status.isGranted) {
-        status = await permission.request();
-      }
-
-      if (status.isDenied || status.isPermanentlyDenied) {
-        if (!mounted) return false;
-        _showPermissionDeniedDialog(permissionName);
-        return false;
-      }
-      return true;
-    } catch (e) {
-      if (mounted) _showSnackBar('Permission check failed: $e');
-      return false;
-    }
-  }
-
-  Future<bool> _checkCameraPermission() =>
-      _requestPermission(Permission.camera, 'Camera');
-
-  void _showPermissionDeniedDialog(String permissionName) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('$permissionName permission denied'),
-        content: Text('$permissionName permission is required to continue.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
-          TextButton(
-            onPressed: () {
-              openAppSettings();
-              Navigator.pop(context);
-            },
-            child: const Text('Open Settings'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ---------------------
-  // Actions: navigation & pickers
-  // ---------------------
-  Future<void> _pickImageFromCamera() async {
-    final ok = await _checkCameraPermission();
-    if (!ok || !mounted) return;
-
-    try {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PDFCreationPage(
-            source: ImageSource.camera,
-            onPdfCreated: (file) {
-              _loadFiles();
-            },
-          ),
-        ),
-      );
-    } catch (e) {
-      if (mounted) _showSnackBar('Failed to open camera: $e');
     }
   }
 
@@ -247,49 +176,9 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // ---------------------
-  // Manage External Storage permission (Android 11+)
-  // ---------------------
-  Future<bool> _checkManageStoragePermission() async {
-    try {
-      final status = await Permission.manageExternalStorage.status;
-      if (status.isGranted) return true;
-
-      final result = await Permission.manageExternalStorage.request();
-      if (result.isDenied || result.isPermanentlyDenied) {
-        if (!mounted) return false;
-        final openSettings = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Permission Required'),
-            content: const Text(
-                'Storage permission is permanently denied. Please enable it from app settings.'),
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Cancel')),
-              TextButton(
-                onPressed: () {
-                  openAppSettings();
-                  Navigator.pop(context, true);
-                },
-                child: const Text('Open Settings'),
-              ),
-            ],
-          ),
-        );
-        return openSettings == true;
-      }
-      return result.isGranted;
-    } catch (e) {
-      if (mounted) _showSnackBar('Permission check failed: $e');
-      return false;
-    }
-  }
-
   Future<void> _downloadPdf(File file) async {
     if (Platform.isAndroid) {
-      final hasPermission = await _checkManageStoragePermission();
+      final hasPermission = await _controllers.checkStoragePermission(context);
       if (!hasPermission) {
         if (mounted) _showSnackBar('Storage permission denied');
         return;
@@ -416,6 +305,10 @@ class _HomePageState extends State<HomePage> {
   // ---------------------
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadFiles();
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('PDF Converter',
@@ -476,50 +369,31 @@ class _HomePageState extends State<HomePage> {
       ),
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            Tooltip(
-              message: 'Pick from Gallery',
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                    shape: const CircleBorder(),
-                    backgroundColor: Colors.deepPurple,
-                    minimumSize: const Size.fromRadius(35)),
-                onPressed: () async {
-                  try {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => PDFCreationPage(
-                          source: ImageSource.gallery,
-                          onPdfCreated: (file) {
-                            _loadFiles();
-                          },
-                        ),
-                      ),
-                    );
-                  } catch (e) {
-                    _showSnackBar('Failed to open gallery: $e');
-                  }
-                },
-                child: const Icon(Icons.photo_library,
-                    size: 28, color: Colors.white),
+        child: SizedBox(
+          width: double.infinity,
+          height: 55,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.deepPurple,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
-            Tooltip(
-              message: 'Take Photo',
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                    shape: const CircleBorder(),
-                    backgroundColor: Colors.deepPurple,
-                    minimumSize: const Size.fromRadius(35)),
-                onPressed: _pickImageFromCamera,
-                child:
-                    const Icon(Icons.camera_alt, size: 28, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PdfOptionsPage()),
+              ); // <-- Change Route if needed
+            },
+            child: const Text(
+              "Create PDF",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

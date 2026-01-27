@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:pdf_converter/Controllers/permission_controller.dart';
+import 'package:pdf_converter/Screens/Home/home.dart';
 
 class PDFCreationPage extends StatefulWidget {
   final Function(File) onPdfCreated;
@@ -21,12 +23,15 @@ class PDFCreationPage extends StatefulWidget {
 class _PDFCreationPageState extends State<PDFCreationPage> {
   final List<File> _images = [];
   String pdfFileName = "My File";
+  Controllers controllers = Controllers();
 
   //------------------------------------------------
   // Pick images from gallery/camera
   //------------------------------------------------
   Future<void> _pickImages(ImageSource source) async {
     try {
+      final permission = await controllers.checkStoragePermission(context);
+      if (!permission) return;
       final picker = ImagePicker();
       if (source == ImageSource.gallery) {
         final pickedImages = await picker.pickMultiImage();
@@ -37,6 +42,8 @@ class _PDFCreationPageState extends State<PDFCreationPage> {
           _fileNameDialog();
         }
       } else {
+        final permission = await controllers.checkCameraPermission(context);
+        if (!permission) return;
         bool pickAnother = true;
         while (pickAnother) {
           final pickedFile = await picker.pickImage(source: ImageSource.camera);
@@ -155,7 +162,12 @@ class _PDFCreationPageState extends State<PDFCreationPage> {
       if (!mounted) return;
       Navigator.pop(context); // Close loader
       widget.onPdfCreated(file);
-      Navigator.pop(context); // Go back
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const HomePage()),
+        (route) => false,
+      );
+
       _showSnackBar("PDF saved as $pdfFileName.pdf");
     } catch (e) {
       if (mounted) {

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pdf_converter/home.dart';
+import 'package:pdf_converter/Screens/Home/home.dart';
 
 void main() {
   runApp(const MyApp());
@@ -18,7 +18,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const HomePage(title: 'PDF_converter'),
+      home: const HomePage(),
     );
   }
 }
