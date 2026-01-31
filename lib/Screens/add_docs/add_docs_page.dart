@@ -24,7 +24,7 @@ class _AddDocsPageState extends State<AddDocsPage> {
   /// Returns the converted PDF file
   Future<File> _convertOfficeToPdf(File officeFile, String pdfName) async {
     final uri =
-        Uri.parse("https://pdf-backend-nyz3.onrender.com/api/office-to-pdf");
+        Uri.parse("https://pdf-backend-2-nhgm.onrender.com/api/office-to-pdf");
 
     final request = http.MultipartRequest("POST", uri);
     request.files.add(

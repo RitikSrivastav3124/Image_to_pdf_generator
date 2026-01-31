@@ -8,6 +8,7 @@ package="com.example.pdf_converter">
 
     <application
         android:label="pdf_converter"
+        android:usesCleartextTraffic="true"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon"
         android:requestLegacyExternalStorage="true"
