@@ -9,6 +9,7 @@ class Controllers {
     final result = await Permission.manageExternalStorage.request();
     if (result.isGranted) return true;
 
+    if (!context.mounted) return false;
     _showPermissionDialog(context, 'Storage');
     return false;
   }
@@ -21,6 +22,7 @@ class Controllers {
     final result = await Permission.camera.request();
     if (result.isGranted) return true;
 
+    if (!context.mounted) return false;
     _showPermissionDialog(context, 'Camera');
     return false;
   }
@@ -28,20 +30,20 @@ class Controllers {
   void _showPermissionDialog(BuildContext context, String permission) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Text('$permission Permission Required'),
         content: Text(
           '$permission permission is required to continue. Please enable it from settings.',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () {
               openAppSettings();
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
             },
             child: const Text('Open Settings'),
           ),

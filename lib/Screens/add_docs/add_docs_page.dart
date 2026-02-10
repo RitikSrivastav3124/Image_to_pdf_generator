@@ -3,6 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:pdf_converter/Controllers/api_calling_controller.dart';
 import 'package:pdf_converter/Controllers/permission_controller.dart';
 
 import 'package:pdf_converter/Screens/office-to-pdf/office_to_pdf_preview.dart';
@@ -19,41 +20,7 @@ class _AddDocsPageState extends State<AddDocsPage> {
   File? selectedFile;
   bool isLoading = false;
   Controllers controllers = Controllers();
-
-  ///   BACKEND CALL (Office → PDF)
-  /// Returns the converted PDF file
-  Future<File> _convertOfficeToPdf(File officeFile, String pdfName) async {
-    final uri =
-        Uri.parse("https://pdf-backend-2-nhgm.onrender.com/api/office-to-pdf");
-
-    final request = http.MultipartRequest("POST", uri);
-    request.files.add(
-      await http.MultipartFile.fromPath("file", officeFile.path),
-    );
-
-    final streamedResponse = await request.send();
-
-    if (streamedResponse.statusCode != 200) {
-      throw Exception("Server error");
-    }
-
-    final bytes = await streamedResponse.stream.toBytes();
-
-    final dir = await getApplicationDocumentsDirectory();
-    final pdfDir = Directory("${dir.path}/pdf_converter");
-
-    if (!await pdfDir.exists()) {
-      await pdfDir.create(recursive: true);
-    }
-
-    final safeName = pdfName.trim().isEmpty ? "Converted_File" : pdfName.trim();
-
-    final pdfFile = File("${pdfDir.path}/$safeName.pdf");
-
-    await pdfFile.writeAsBytes(bytes, flush: true);
-
-    return pdfFile;
-  }
+  ApiCallingController apiCallingController = ApiCallingController();
 
   void _showSnackBar(String message) {
     if (!mounted) return;
@@ -121,7 +88,8 @@ class _AddDocsPageState extends State<AddDocsPage> {
 
       ///  CONVERT USING BACKEND
       final pdfName = await _fileName();
-      final pdfFile = await _convertOfficeToPdf(selectedFile!, pdfName);
+      final pdfFile =
+          await apiCallingController.convertOfficeToPdf(selectedFile!, pdfName);
 
       setState(() => isLoading = false);
 
