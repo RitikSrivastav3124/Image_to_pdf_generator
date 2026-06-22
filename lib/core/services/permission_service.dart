@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-class Controllers {
+class PermissionService {
   Future<bool> checkStoragePermission(BuildContext context) async {
     final status = await Permission.manageExternalStorage.status;
     if (status.isGranted) return true;

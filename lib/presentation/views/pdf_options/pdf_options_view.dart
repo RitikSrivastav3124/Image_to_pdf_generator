@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:pdf_converter/Screens/add_docs/add_docs_page.dart';
-import 'package:pdf_converter/Screens/image_to_pdf/image_to_pdf_page.dart';
+import 'package:pdf_converter/presentation/views/image_to_pdf/image_to_pdf_view.dart';
+import 'package:pdf_converter/presentation/views/office_to_pdf/add_docs_view.dart';
 
-class PdfOptionsPage extends StatelessWidget {
-  const PdfOptionsPage({super.key});
+class PdfOptionsView extends StatelessWidget {
+  const PdfOptionsView({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +16,7 @@ class PdfOptionsPage extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const ImageToPdfPage(),
+              builder: (context) => const ImageToPdfView(),
             ),
           );
         },
@@ -29,7 +29,7 @@ class PdfOptionsPage extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const AddDocsPage(),
+              builder: (context) => const AddDocsView(),
             ),
           );
         },

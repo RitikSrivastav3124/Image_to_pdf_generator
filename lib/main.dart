@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:pdf_converter/Screens/Home/home.dart';
+import 'package:pdf_converter/core/theme/app_theme.dart';
+import 'package:pdf_converter/routes/app_routes.dart';
 
 void main() {
   runApp(const MyApp());
@@ -14,11 +15,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Demo',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: const HomePage(),
+      theme: AppTheme.theme,
+      initialRoute: AppRoutes.home,
+      onGenerateRoute: AppRoutes.onGenerateRoute,
     );
   }
 }

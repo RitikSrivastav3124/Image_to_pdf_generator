@@ -1,30 +1,30 @@
-import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:pdf_converter/Screens/Home/home.dart';
 import 'dart:io';
 
-import 'package:pdf_converter/Screens/image_to_pdf/pdf_creation_page.dart';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:pdf_converter/presentation/views/home/home_view.dart';
+import 'package:pdf_converter/presentation/views/image_to_pdf/pdf_creation_view.dart';
 
-class ImageToPdfPage extends StatefulWidget {
-  const ImageToPdfPage({super.key});
+class ImageToPdfView extends StatefulWidget {
+  const ImageToPdfView({super.key});
 
   @override
-  State<ImageToPdfPage> createState() => _ImageToPdfPageState();
+  State<ImageToPdfView> createState() => _ImageToPdfViewState();
 }
 
-class _ImageToPdfPageState extends State<ImageToPdfPage> {
+class _ImageToPdfViewState extends State<ImageToPdfView> {
   List<File> selectedImages = [];
 
   Future<void> _pickFromGallery() async {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => PDFCreationPage(
+        builder: (context) => PDFCreationView(
           source: ImageSource.gallery,
           onPdfCreated: (file) {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const HomePage()),
+              MaterialPageRoute(builder: (context) => const HomeView()),
             );
           },
         ),
@@ -36,12 +36,12 @@ class _ImageToPdfPageState extends State<ImageToPdfPage> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => PDFCreationPage(
+        builder: (context) => PDFCreationView(
           source: ImageSource.camera,
           onPdfCreated: (file) {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const HomePage()),
+              MaterialPageRoute(builder: (context) => const HomeView()),
             );
           },
         ),
@@ -132,13 +132,13 @@ class _ImageToPdfPageState extends State<ImageToPdfPage> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => PDFCreationPage(
+                            builder: (context) => PDFCreationView(
                               source: ImageSource.gallery,
                               onPdfCreated: (file) {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                      builder: (context) => const HomePage()),
+                                      builder: (context) => const HomeView()),
                                 );
                               },
                             ),

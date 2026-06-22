@@ -1,12 +1,15 @@
+// ignore_for_file: deprecated_member_use
+
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:open_file/open_file.dart';
 import 'package:share_plus/share_plus.dart';
 
-class OfficeToPdfPreview extends StatelessWidget {
+class OfficeToPdfPreviewView extends StatelessWidget {
   final File pdfFile;
 
-  const OfficeToPdfPreview({super.key, required this.pdfFile});
+  const OfficeToPdfPreviewView({super.key, required this.pdfFile});
 
   @override
   Widget build(BuildContext context) {
